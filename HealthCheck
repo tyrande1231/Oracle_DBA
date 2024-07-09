@@ -1,0 +1,158 @@
+SELECT TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI:SS') from dual;
+/
+select inst_id, count(*) from gv$session where status='ACTIVE' and event like 'gc%' group by inst_id;
+/
+select s.inst_id, s.sid,s.serial#,ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) runtime_min,
+fcr.request_id, fv.requestor, fv.Program cmgr_job,to_char(s.logon_time,'DD-MON-YY HH24:MI:SS') Logon_Time,
+p.USERNAME p_user,p.SPID, s.program,s.command,p.PID,p.SERIAL#, s.username,s.process,s.machine,s.action,s.module
+from apps.fnd_concurrent_requests fcr,apps.FND_CONC_REQ_SUMMARY_V fv,
+gv$session s,gv$process p
+where fcr.request_id in 
+(SELECT  fcr.request_id 
+    FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+        ,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+   WHERE fcr.status_code LIKE 'R'
+   --where s.action like 'Workflow Background Process'
+     AND fu.user_id = fcr.requested_by
+     AND fr.responsibility_id = fcr.responsibility_id
+     AND fcr.concurrent_program_id = fcp.concurrent_program_id
+     AND fcr.program_application_id = fcp.application_id
+     AND ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) > 120)
+and p.SPID = fcr.oracle_process_id
+and s.process = fcr.OS_PROCESS_ID
+and s.inst_id = p.inst_id
+and p.addr = s.paddr
+and fv.request_id = fcr.request_id
+order by 4 DESC;
+/-- check for DB Blockage
+select l1.inst_id,l1.sid, ' IS BLOCKING ', l2.sid,l1.type,l2.type,l1.lmode,l2.lmode,l2.inst_id
+from gv$lock l1, gv$lock l2
+where l1.block =1 and l2.request > 0
+and l1.id1=l2.id1
+and l1.id2=l2.id2;
+/--Identify blockage via SID
+select sid, serial#, status, client_identifier, module, program from gv$session
+where sid in (5871);
+/
+-- CM Pending Request
+select cq.user_concurrent_queue_name, COUNT (distinct cwr.request_id) Pending_Requests FROM apps.fnd_concurrent_worker_requests cwr,
+apps.fnd_concurrent_queues_tl cq, apps.fnd_user fu WHERE (cwr.phase_code = 'P' OR cwr.phase_code = 'R')  
+AND cwr.hold_flag != 'Y'   AND cwr.requested_start_date <= SYSDATE    AND cwr.concurrent_queue_id = cq.concurrent_queue_id  
+AND cwr.queue_application_id = cq.application_id  and cq.LANGUAGE='US'  
+AND cwr.requested_by = fu.user_id --- and cq.user_concurrent_queue_name  like 'SGS OTO High Load: %'
+group by cq.user_concurrent_queue_name;
+/
+--TOP REQUEST QUERY
+select distinct
+    fv.Program "Request Name"
+    ,count(fv.Program) count
+FROM 
+    apps.fnd_concurrent_worker_requests cwr, 
+    apps.fnd_concurrent_queues_tl cq, 
+    apps.FND_CONC_REQ_SUMMARY_V fv,
+    apps.fnd_responsibility_vl fr
+WHERE 
+    (cwr.phase_code = 'P' OR cwr.phase_code = 'R')   
+    AND cwr.hold_flag != 'Y'   
+    AND cwr.requested_start_date <= SYSDATE
+    AND cwr.concurrent_queue_id = cq.concurrent_queue_id   
+    AND cwr.queue_application_id = cq.application_id  
+    and cq.LANGUAGE='US'
+    and cq.user_concurrent_queue_name =  'Conflict Resolution Manager'
+    AND fv.request_id = cwr.request_id
+    AND fr.responsibility_id = fv.responsibility_id
+group by fv.Program
+order by 2 desc;
+/
+--: Query Program with Status and Scheduled Date
+SELECT fcr.request_id,fv.program,
+fv.requestor,DECODE (fv.status_code, 'R', 'Normal', 'I', 'Normal','Z', 'Waiting','D', 'Cancelled','U', 'Disabled', 'E', 'Error',
+                             'M', 'No Manager', 'C', 'Normal','H', 'On Hold','W', 'Paused','B', 'Resuming', 'P', 'Scheduled',
+                             'Q', 'Standby', 'S', 'Suspended','X', 'Terminated','T', 'Terminating','A', 'Waiting', 'G', 'Warning',fv.status_code) STATUS_CODE,
+                            DECODE (fv.phase_code, 'C', 'Completed', 'I', 'Inactive','P', 'Pending','R', 'Running',fv.phase_code) CURRENT_PHASE,
+to_char(fcr.request_date,'yyyy-mm-dd hh24:mi:ss') Actual_Request_Date,
+to_char(fcr.actual_start_date,'yyyy-mm-dd hh24:mi:ss') Actual_Start_Date,
+to_char(fcr.actual_completion_date,'yyyy-mm-dd hh24:mi:ss') Completion_Date,
+to_char(fcr.requested_START_DATE,'yyyy-mm-dd hh24:mi:ss') "Scheduled at",
+Round((fcr.actual_completion_date-fcr.actual_start_date) *1440,2) "Duration (Min)",
+fcr.argument_text "Parameter",ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) runtime_min,fv.program
+---ROUND (((to_char(fcr.completvion_start_date, hh24:mi:ss') - (to_char(fcr.actual_start_date,'mm-dd-yy hh24:mi:ss')) * 60 * 24), 2) runtime_min
+FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+,apps.FND_CONC_REQ_SUMMARY_V fv
+/*where fv.status_code like 'W'
+and fv.phase_code like 'R'*/
+WHERE fv.Program like ('XXC_Auto%')--- modifiable condition 
+--and fv.requestor = 'CEDRIC_ZEHNDER' -- modifiable
+--where fv.requestor = 'SGS_SCHEDULER'
+--and fcr.actual_start_date >= to_date('2023-04-1 00:00:00', 'yyyy-mm-dd hh24:mi:ss')   --- modifiable condition
+--and fcr.actual_start_date <= to_date('2023-06-11 00:00:00', 'yyyy-mm-dd hh24:mi:ss')    --- modifiable condition 
+--and fv.requestor = 'CHRISHA_PANER' -- modifiable
+--AND fcr.request_id in (440576613,440576612,440554968,440169761)
+AND fu.user_id = fcr.requested_by
+AND fr.responsibility_id = fcr.responsibility_id
+AND fcr.concurrent_program_id = fcp.concurrent_program_id
+AND fcr.program_application_id = fcp.application_id
+and fv.request_id = fcr.request_id
+order by 1 DESC;
+/
+--workflow monitoring
+select  fcq.USER_CONCURRENT_QUEUE_NAME Container_Name, DECODE(fcp.OS_PROCESS_ID,NULL,'Not
+Running',fcp.OS_PROCESS_ID) PROCID,
+fcq.MAX_PROCESSES TARGET,
+fcq.RUNNING_PROCESSES ACTUAL,
+fcq.ENABLED_FLAG ENABLED,
+fsc.COMPONENT_NAME,
+fsc.STARTUP_MODE,
+fsc.COMPONENT_STATUS
+from APPS.FND_CONCURRENT_QUEUES_VL fcq, APPS.FND_CP_SERVICES fcs, APPS.FND_CONCURRENT_PROCESSES
+fcp, fnd_svc_components fsc
+where fcq.MANAGER_TYPE = fcs.SERVICE_ID
+and fcs.SERVICE_HANDLE = 'FNDCPGSC'
+and fsc.concurrent_queue_id = fcq.concurrent_queue_id(+)
+and fcq.concurrent_queue_id = fcp.concurrent_queue_id(+)
+and fcq.application_id = fcp.queue_application_id(+)
+and fcp.process_status_code(+) = 'A'
+order by fcp.OS_PROCESS_ID, fsc.STARTUP_MODE;
+/--SOA Monitoring
+select message_id "Instance ID",irep_name "Web Service Name",interface "Operation Name",
+request_pattern "Interaction Pattern",to_char(request_timestamp,'yyyy-mm-dd hh24:mi:ss') "Request Received" ,
+to_char(request_completed,'yyyy-mm-dd hh24:mi:ss')  "Response Sent",request_status Status,attrib8 LOG
+from  FND_SOA_REQUEST where 1=1 
+and request_timestamp <= sysdate
+and rownum <51
+order by message_id  desc;
+/--SOA Monitoring Fail
+select  message_id "Instance ID",irep_name "Web Service Name",interface "Operation Name",request_pattern "Interaction Pattern",to_char(request_timestamp,'yyyy-mm-dd hh24:mi:ss') "Request Received" ,
+to_char(request_completed,'yyyy-mm-dd hh24:mi:ss')  "Response Sent",request_status Status,attrib8 LOG
+from  FND_SOA_REQUEST where 1=1
+and request_timestamp >= sysdate-1
+--and attrib8 like '%Adapter error%'
+and request_status like '%FAIL%'
+and rownum <500
+ORDER BY REQUEST_TIMESTAMP DESC;
+/-- Auto Invoice
+SELECT fcr.request_id,fv.program,
+fv.requestor,DECODE (fv.status_code, 'R', 'Normal', 'I', 'Normal','Z', 'Waiting','D', 'Cancelled','U', 'Disabled', 'E', 'Error',
+                             'M', 'No Manager', 'C', 'Normal','H', 'On Hold','W', 'Paused','B', 'Resuming', 'P', 'Scheduled',
+                             'Q', 'Standby', 'S', 'Suspended','X', 'Terminated','T', 'Terminating','A', 'Waiting', 'G', 'Warning',fv.status_code) STATUS_CODE,
+                            DECODE (fv.phase_code, 'C', 'Completed', 'I', 'Inactive','P', 'Pending','R', 'Running',fv.phase_code) CURRENT_PHASE,
+to_char(fcr.request_date,'yyyy-mm-dd hh24:mi:ss') Actual_Request_Date,
+to_char(fcr.actual_start_date,'yyyy-mm-dd hh24:mi:ss') Actual_Start_Date,
+to_char(fcr.actual_completion_date,'yyyy-mm-dd hh24:mi:ss') Completion_Date,
+to_char(fcr.requested_START_DATE,'yyyy-mm-dd hh24:mi:ss') "Scheduled at",
+Round((fcr.actual_completion_date-fcr.actual_start_date) *1440,2) "Duration (Min)"
+FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+,apps.FND_CONC_REQ_SUMMARY_V fv
+WHERE fv.Program like ('XXC_AutoAccounting_AutoInvoice Batch (PE) (Report Set)') --- Program Name 
+--and fv.requestor = 'CEDRIC_ZEHNDER' -- Requestor Name
+--and fcr.actual_start_date >= to_date('2023-04-1 00:00:00', 'yyyy-mm-dd hh24:mi:ss')   --- From Date
+--and fcr.actual_start_date <= to_date('2023-06-11 00:00:00', 'yyyy-mm-dd hh24:mi:ss')    --- To Date 
+AND fu.user_id = fcr.requested_by
+AND fr.responsibility_id = fcr.responsibility_id
+AND fcr.concurrent_program_id = fcp.concurrent_program_id
+AND fcr.program_application_id = fcp.application_id
+and fv.request_id = fcr.request_id
+order by 1 DESC;
+/
