@@ -1,0 +1,659 @@
+--OBJECT USER COUNT DB PROD
+select
+   x.sid
+from
+   v$session x, v$sqltext y
+where
+   x.sql_address = y.address
+and
+   y.sql_text like '%XXC_AR_ONT%';
+/
+select
+   x.*
+from
+   v$session x, v$sqltext y
+where
+   x.sql_address = y.address
+and
+   y.sql_text like '%XXC_AR_ONT%';
+
+--QUERY INVALID OBJECT
+SELECT owner, object_type, object_name, status
+     FROM all_objects
+     WHERE status = 'INVALID'
+     ORDER BY owner;
+
+==========================
+CHECK REQUEST
+select request_id,phase_code,status_code from fnd_concurrent_requests where request_id like '412900887';
+==========================
+
+WORKFLOW BACKGROUND PROCESS
+SELECT count(*) FROM mtl_categories_b_kfv mck, po_requisition_lines_all prl, fnd_lookup_values_vl flv 
+WHERE flv.lookup_type = 'XXC_ITEM_CATEGORY' AND flv.enabled_flag = 'Y' AND mck.category_id = prl.category_id 
+AND mck.concatenated_segments = flv.lookup_code AND prl.requisition_header_id = po_ame_setup_pvt.get_new_req_header_id(:transactionId) 
+AND NVL(prl.cancel_flag, 'N') = 'N' AND NVL(prl.modified_by_agent_flag,'N') = 'N';
+
+--Workflow Background Process Count
+select item_type, count(*) from applsys.wf_item_activity_statuses
+where activity_status='DEFERRED' and item_type <> 'IEXSTRY' and begin_date 
+between sysdate-1 and sysdate group by item_type order by 2 desc;  
+
+
+--Verify Mailer Setup
+select c.component_id, c.component_name, p.parameter_id, p.parameter_name, v.parameter_value value 
+from fnd_svc_comp_param_vals_v v, fnd_svc_comp_params_b p, fnd_svc_components c 
+where c.component_type = 'WF_MAILER' 
+and v.component_id = c.component_id and v.parameter_id = p.parameter_id and p.parameter_name in ( 'INBOUND_SERVER','ACCOUNT', 'REPLYTO') 
+order by c.component_id, c.component_name,p.parameter_name;
+
+From <https://expertoracle.com/2016/04/12/oracle-workflow-related-frequently-used-queries/> 
+==========================
+Check my USER_ID
+select * from FND_USER where USER_NAME='MARKJOSEPH_VILLA';
+
+Query user with END_DATE NULL
+select * from FND_USER where START_DATE > '6/1/2022' and END_DATE IS NULL AND DESCRIPTION LIKE '%Makati%';
+==========================
+Concurrent Duplicate Monitoring
+select a.requested_by, b.user_name , a.concurrent_program_id, c.concurrent_program_name, a.resub_count , a.requested_start_date, a.argument_text , count(*)								
+from fnd_concurrent_requests a , fnd_user b , fnd_concurrent_programs c								
+where a.requested_by=b.user_id								
+and a.concurrent_program_id=c.concurrent_program_id								
+and a.phase_code='P' and a.resub_count is not null								
+group by a.requested_by, b.user_name , a.concurrent_program_id, c.concurrent_program_name, a.resub_count , a.requested_start_date, a.argument_text								
+having count(*) > 1								
+order by a.requested_by, b.user_name , a.concurrent_program_id, c.concurrent_program_name, a.resub_count , a.requested_start_date, a.argument_text
+=============================
+--Monitor ACN Responsibilities
+SELECT distinct
+fuser.USER_NAME USER_NAME
+,fuser.user_id
+,fuser.creation_date
+,fuser.last_update_date
+,fuser.LAST_LOGON_DATE
+,fuser.START_DATE
+,fuser.END_DATE
+,furg.DESCRIPTION
+--, per.FULL_NAME FULL_NAME
+--, per.EMPLOYEE_NUMBER EMPLOYEE_NUMBER
+,frt.RESPONSIBILITY_NAME RESPONSIBILITY
+,TO_CHAR(furg.START_DATE,'DD-MON-YYYY') resp_attched_date
+,TO_CHAR(furg.END_DATE,'DD-MON-YYYY') resp_remove_date
+FROM
+FND_USER fuser
+--, PER_PEOPLE_F per
+, fnd_user_resp_groups_direct furg
+, FND_RESPONSIBILITY_TL frt
+WHERE 1=1
+--fuser.EMPLOYEE_ID = per.PERSON_ID
+AND fuser.USER_ID = furg.USER_ID
+AND (to_char(fuser.END_DATE) is null OR fuser.END_DATE > sysdate)
+AND frt.RESPONSIBILITY_ID = furg.RESPONSIBILITY_ID
+AND frt.LANGUAGE = 'US'
+and fuser.user_name IN
+('MARKJOSEPH_VILLA')
+and sysdate between furg.START_DATE and nvl(furg.END_DATE,sysdate+1)
+ORDER BY
+fuser.USER_NAME;
+===============================
+SGS ADM AR Clear Automatic Receipt Errors
+SELECT
+    hca.account_number   customer_number,
+    hou.name org_name,
+    rct.customer_trx_id,
+    rct.trx_number,
+    rct.org_id,
+   rct.cc_error_code,
+    rct.cc_error_text,
+    rct.cc_error_flag,
+    rct.creation_date
+FROM
+    ra_customer_trx_all rct,
+    hz_cust_accounts_all hca,
+    hr_all_organization_units hou
+WHERE
+    rct.bill_to_customer_id = hca.cust_account_id
+    AND
+    rct.cc_error_flag = 'Y'
+    AND
+    rct.org_id = hou.organization_id
+    AND
+    hou.name IN ('LE F052001', 'LE F052011', 'LE F053501','LE F058201')
+ORDER BY
+    rct.org_id,
+    rct.creation_date DESC   ;
+=============================================
+
+Search Responsibility
+select * from
+fnd_responsibility
+where
+responsibility_key like '%F400103%'; 
+==================================
+select * from ecx_oxta_logmsg where sender_message_id in (select msgid from ecx_doclogs where document_number like '1011426%')
+===================================
+AP Approver Lock
+SELECT a.object_id, a.session_id, substr(b.object_name, 1, 40) -- check for locking issue
+  FROM v$locked_object a
+     , dba_objects b
+ WHERE a.object_id = b.object_id
+   AND b.object_name like 'AP_%'
+ ORDER BY b.object_name ;
+
+
+SELECT l.*, o.owner object_owner, o.object_name
+  FROM SYS.all_objects o
+     , v$lock l
+ WHERE l.TYPE = 'TM'
+   AND o.object_id = l.id1
+   AND o.object_name in ('AP_INVOICES_ALL', 'AP_INVOICE_LINES_ALL', 'AP_INVOICE_DISTRIBUTIONS_ALL') ;
+
+From <https://support.oracle.com/epmos/faces/SearchDocDisplay?_adf.ctrl-state=hykulngo_166&_afrLoop=305612891503217> 
+
+select S.* --s.sid, s.serial#, p.spid
+from
+v$session s,
+v$process p
+where
+s.paddr = p.addr
+and
+s.sid in (2325, 2517, 3156);
+
+From <https://teams.microsoft.com/multi-window/?agent=electron&version=22101406300> 
+
+SELECT inst_id,DECODE(request,0,'Holder: ','Waiter: ')||sid sess,id1, id2, lmode, request, type
+FROM GV$LOCK
+WHERE (id1, id2, type) IN
+(SELECT id1, id2, type FROM gV$LOCK WHERE request>0)
+ORDER BY id1, request
+
+From <https://support.oracle.com/epmos/faces/SrDetail?_adf.ctrl-state=1ax06pe7lm_4&srDetailRelativeDateParam=null&queryModeName=Technical&srNumber=3-31055083011&needSrDetailRefresh=true&_afrLoop=121510330738203> 
+=====================================
+--Printer Profile
+select user_name from fnd_user where user_id in (select level_value from FND_PROFILE_OPTION_VALUES where profile_option_value='NLOGC_349');
+/--Find User with profile option name with specific value
+SELECT  
+    pfv.profile_option_name, 
+    pfv.user_profile_option_name,
+    usn.user_name
+FROM 
+    fnd_user                    usn,
+    fnd_profile_options_vl      pfv 
+WHERE 
+    user_id IN (SELECT level_value FROM fnd_profile_option_values WHERE profile_option_value='ADELINE_MONTEIRO') --profile value
+    AND pfv.user_profile_option_name = 'SGS : Default Execution Contact'; --profile option name
+/
+EBS Site ID
+Select profile_option_value from fnd_profile_option_values where profile_option_id='125';
+/--query profile
+select profile_option_name, user_profile_option_name from fnd_profile_options_vl where profile_option_name like upper('%Diagnostic%');
+
+Find All Label Printer in MFG Lookups XXC_INV_LABEL_PRINTER
+SELECT lookup_code,meaning,tag,creation_date,last_update_date FROM apps.FND_LOOKUP_VALUES_VL where lookup_type='XXC_INV_LABEL_PRINTER';
+
+======================================
+Missing Directory
+SELECT * FROM dba_directories WHERE directory_path LIKE '%BG';
+=================================
+ETL File History Search
+--select * from  ETL_SGS.ETL_FILE_HISTORY where input_file like 'ES_MAD_ITVS_AR_F058101_3513_27062023_48938.TXT%' order by created_date;
+===================================
+CHECK LONG RUNNING REQUEST
+SELECT   fcr.request_id rqst_id
+        ,fu.user_name
+        ,fr.responsibility_name
+        ,fcp.user_concurrent_program_name program_name
+        ,TO_CHAR (fcr.actual_start_date, 'DD-MON-YYYY HH24:MI:SS')start_datetime
+        ,DECODE (fcr.status_code, 'R', 'R:Running', fcr.status_code) status
+        ,ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) runtime_min
+        ,fcr.oracle_process_id "SPID"
+        ,fcr.os_process_id os_pid
+    FROM apps.fnd_concurrent_requests fcr
+        ,apps.fnd_user fu
+        ,apps.fnd_responsibility_vl fr
+        ,apps.fnd_concurrent_programs_vl fcp
+   WHERE fcr.status_code LIKE 'R'
+     AND fu.user_id = fcr.requested_by
+     AND fr.responsibility_id = fcr.responsibility_id
+     AND fcr.concurrent_program_id = fcp.concurrent_program_id
+     AND fcr.program_application_id = fcp.application_id
+     AND ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) > 120
+ORDER BY fcr.concurrent_program_id
+        ,request_id DESC;
+
+1. select * from FND_CONC_PP_ACTIONS where concurrent_request_id=<request_id>;
+
+2. select * from FND_RUN_REQ_PP_ACTIONS where parent_request_id = <request_id>;
+where <request_id> replace with your request id.
+=====================================
+CHECK FOR REQUEST STATUS
+select 
+fcr.request_id, fcr.parent_request_id, fcr.concurrent_program_id, fcpt.user_concurrent_program_name, fcr.request_date, fu2.user_name requested_by, fcr.phase_code, fcr.status_code, fcr.responsibility_id, fu.user_name, frt.responsibility_name
+, to_char(fcr.requested_Start_Date,'mm/dd/yyyy hh24:mi:ss') requested_Start_Date,  
+to_char(fcr.actual_start_date,'mm/dd/yyyy hh24:mi:ss') actual_start_date, to_char(fcr.actual_completion_Date,'mm/dd/yyyy hh24:mi:ss') actual_completion_Date, to_char(sysdate,'mm/dd/yyyy hh24:mi:ss') System_date, to_char(fcr.last_update_date,'mm/dd/yyyy hh24:mi:ss') last_update_date, fcr.outfile_name, fcr.argument_text
+from fnd_concurrent_requests fcr, fnd_user fu, fnd_responsibility_tl frt, fnd_concurrent_programs_tl fcpt, fnd_user fu2
+where 1=1
+--and request_id in (398500931, 398500749,398500710, 398500697 )
+--And request_id in ( 411554274  , 411097016, 411567411, 864703798,411668717,411668716, 411705487 ,411720272, 411718956)
+--AND fcr.REQUESTED_BY = 439835
+and fu.user_id = fcr.last_updated_by
+and fu2.user_id = fcr.requested_by
+and fcr.responsibility_id = frt.responsibility_id
+and frt.language = 'US'
+--and fcr.concurrent_program_id IN (308381,308382,308383,308380)
+--and fcr.concurrent_program_id LIKE (170178)
+and fcpt.language = 'US'
+and fcpt.concurrent_program_id = fcr.concurrent_program_id
+--and fcr.actual_completion_Date is not null
+AND fcr.phase_code = 'P'
+AND fcr.status_code = 'Q'
+--order by fcr.request_id desc
+order by fcr.actual_completion_Date desc;
+====================================
+Blocking Session
+select
+   blocking_session,
+   sid,
+   serial#,
+   wait_class,
+   seconds_in_wait
+from
+   v$session
+where
+   blocking_session is not NULL
+order by
+   blocking_session;
+
+=============================
+--Query logs
+select logfile_name, logfile_node_name, outfile_name,outfile_node_name 
+      from fnd_concurrent_requests
+      where request_id in (389634497, 389634514)
+============================
+--UTL File Directory
+SELECT SUBSTR (VALUE,
+                    1,
+                    DECODE (INSTR (VALUE, ','),
+                            0, LENGTH (VALUE),
+                            INSTR (VALUE, ',') - 1
+                           )
+                   )
+       FROM v$parameter
+      WHERE NAME = 'utl_file_dir';
+============================
+--XML PO Query
+/* Formatted on 2023/09/26 by Mark Villa */
+SELECT (SELECT NAME
+          FROM hr_all_organization_units
+        WHERE organization_id = povs.org_id) "Org_Name",
+        pov.vendor_id, pov.vendor_name,  
+        povs.vendor_site_code,
+        povs.ece_tp_location_code,
+        povs.vendor_site_id,
+        povs.address_line1,
+        povs.vendor_site_code_alt,
+        pov.vat_registration_num tax_registration_num, num_1099 tax_payer_id,
+        pov.segment1 supplier_number, pov.vendor_type_lookup_code,
+        povs.city, povs.state,
+        povs.zip, povs.province, povs.country, povs.inactive_date, povs.org_id
+FROM po_vendors pov, po_vendor_sites_all povs
+WHERE pov.vendor_id = povs.vendor_id
+AND pov.vendor_name like UPPER('Bechtle%') -- Supplier/Vendor Name
+AND (SELECT NAME
+          FROM hr_all_organization_units
+        WHERE organization_id = povs.org_id) like 'LE F010101' -- Legal Entity
+AND pov.end_date_active IS NULL
+AND povs.inactive_date IS NULL;
+==============================
+Refresh Time
+SELECT resetlogs_time FROM v$database;
+
+================================
+Java Error Health Check (oracle script)
+SELECT TO_CHAR(SYSDATE,'YYYY-MM-DD HH24:MI:SS') from dual;
+/
+select name, open_mode, database_role from gv$database;
+/
+select instance_name, to_char(startup_time,'dd-mm-yyyy hh24:mi:ss'),STATUS,DATABASE_STATUS,host_name from gv$instance;
+/
+--alter system archive log current;
+/
+select name, open_mode, database_role from gv$database;
+/
+select instance_name, to_char(startup_time,'dd-mm-yyyyhh24:mi:ss'),STATUS,DATABASE_STATUS,host_name from gv$instance;
+/
+select name,open_mode from gv$pdbs;
+/
+--no blocking sessions
+SELECT substr(DECODE(request,0,'Holder: ','Waiter: ')||sid,1,16) sess,
+id1, id2, lmode, request, type, inst_id
+FROM GV$LOCK
+WHERE (id1, id2, type) IN
+(SELECT id1, id2, type FROM GV$LOCK WHERE request>0)
+ORDER BY id1, request;
+--SQL> 2 3 4 5 6
+====================================
+--SID Blocker Qeuery with request name
+and p.SPID = fcr.oracle_process_id
+and s.process = fcr.OS_PROCESS_ID
+and s.inst_id = p.inst_id
+and p.addr = s.paddr
+and fv.request_id = fcr.request_id
+and s.sid IN (9466,8292,4844,4761,4547,4443,2959)
+order by 4 desc
+===================================
+
+-----------------------------------------------------
+--SQL QUERY to Check load massive data
+-----------------------------------------------------
+ 
+select * from gv$session_longops where time_remaining>0  and target='HR.PER_ALL_PEOPLE_F' order by time_remaining
+
+===================================
+--workflow status
+SELECT component_name AS Component, component_status AS Status from apps.fnd_svc_components;
+--Workflow Monitoring
+
+select  fcq.USER_CONCURRENT_QUEUE_NAME Container_Name, DECODE(fcp.OS_PROCESS_ID,NULL,'Not
+Running',fcp.OS_PROCESS_ID) PROCID,
+fcq.MAX_PROCESSES TARGET,
+fcq.RUNNING_PROCESSES ACTUAL,
+fcq.ENABLED_FLAG ENABLED,
+fsc.COMPONENT_NAME,
+fsc.STARTUP_MODE,
+fsc.COMPONENT_STATUS
+from APPS.FND_CONCURRENT_QUEUES_VL fcq, APPS.FND_CP_SERVICES fcs, APPS.FND_CONCURRENT_PROCESSES
+fcp, fnd_svc_components fsc
+where fcq.MANAGER_TYPE = fcs.SERVICE_ID
+and fcs.SERVICE_HANDLE = 'FNDCPGSC'
+and fsc.concurrent_queue_id = fcq.concurrent_queue_id(+)
+and fcq.concurrent_queue_id = fcp.concurrent_queue_id(+)
+and fcq.application_id = fcp.queue_application_id(+)
+and fcp.process_status_code(+) = 'A'
+order by fcp.OS_PROCESS_ID, fsc.STARTUP_MODE;
+===========================================
+--Count request sent by user within a range of date
+SELECT DISTINCT fv.Program, count(fv.program) "count"
+FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+,apps.FND_CONC_REQ_SUMMARY_V fv
+WHERE fv.Program like ('ETL Program')--- modifiable condition 
+--where fv.requestor = 'EWA_NIEWEGLOWSKA' -- modifiable
+--where fv.requestor = 'SGS_SCHEDULER'
+and fcr.actual_start_date >= to_date('2023-07-2 00:00:00', 'yyyy-mm-dd hh24:mi:ss')   --- modifiable condition
+and fcr.actual_start_date <= to_date('2023-07-29 00:00:00', 'yyyy-mm-dd hh24:mi:ss')    --- modifiable condition 
+--and fv.requestor = 'CHRISHA_PANER' -- modifiable
+AND fu.user_id = fcr.requested_by
+AND fr.responsibility_id = fcr.responsibility_id
+AND fcr.concurrent_program_id = fcp.concurrent_program_id
+AND fcr.program_application_id = fcp.application_id
+and fv.request_id = fcr.request_id
+group by fv.Program
+order by 2 desc;
+============================================
+--DBA Lock
+select * from DBA_DDL_LOCKS where name = 'XXC_AR_ONT';
+/--Query for Database Locking including Request
+SELECT 
+    s.inst_id,
+    s.sid,
+    fv.program "Program Name",
+    fcr.request_id,
+    fcr.status_code,
+    fv.requestor,
+    ddl.session_id,
+    ddl.name
+FROM
+    gv$session s,
+    apps.fnd_concurrent_requests fcr,
+    apps.fnd_conc_req_summary_v fv,
+    dba_ddl_locks ddl
+WHERE fv.request_id = fcr.request_id
+    AND s.sid = ddl.session_id
+    AND ddl.name like '%XXC_AR_ONT%' -- Database Locking Name
+    --AND fcr.actual_start_date >= to_date('2023-07-04 00:00:00', 'yyyy-mm-dd hh24:mi:ss')   -- modifiable condition
+    --AND fcr.actual_start_date <= to_date('2023-07-05 14:20:00', 'yyyy-mm-dd hh24:mi:ss')   -- modifiable condition
+    AND fcr.status_code = 'R'; -- Running Status 
+/
+====================================
+WF DEFERRED
+select distinct s.sid,s.serial#,ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) runtime_min,
+fcr.request_id, fv.requestor, fv.Program cmgr_job,fcr.argument_text "Parameter",q.sql_id
+--to_char(s.logon_time,'DD-MON-YY HH24:MI:SS') Logon_Time,q.sql_id
+---p.USERNAME p_user,p.SPID, s.program,s.command,p.PID,p.SERIAL#, s.username,s.process,s.machine,s.action,s.module,q.sql_id
+from apps.fnd_concurrent_requests fcr,apps.FND_CONC_REQ_SUMMARY_V fv,
+gv$session s,gv$process p ,gv$sqlarea q
+WHERE fv.Program like (': Create Credit Card Issuer Invoice')
+and p.SPID = fcr.oracle_process_id
+and s.process = fcr.OS_PROCESS_ID
+and s.inst_id = p.inst_id
+and p.addr = s.paddr
+and fv.request_id = fcr.request_id
+and s.sql_hash_value = q.hash_value order by 4;
+/--workflow process count
+select item_type, count(*) from applsys.wf_item_activity_statuses
+where activity_status='DEFERRED' and item_type <> 'IEXSTRY' and begin_date 
+between sysdate-1 and sysdate group by item_type order by 2 desc;
+/
+===================================
+	1. --------> Check running concurrent job
+ 
+SELECT fcr.request_id,fv.Program,fv.requestor,fcr.status_code STATUS_CODE, fcr.phase_code,
+to_char(fcr.actual_start_date,'yyyy-mm-dd hh24:mi:ss') Actual_Start_Date,
+to_char(fcr.actual_completion_date,'yyyy-mm-dd hh24:mi:ss') Completion_Date,
+Round((fcr.actual_completion_date-fcr.actual_start_date) *1440,2) "Duration (Min)",
+fcr.argument_text "Parameter"
+---ROUND (((to_char(fcr.completion_start_date, hh24:mi:ss') - (to_char(fcr.actual_start_date,'mm-dd-yy hh24:mi:ss')) * 60 * 24), 2) runtime_min,
+    FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+        ,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+        ,apps.FND_CONC_REQ_SUMMARY_V fv
+   WHERE fv.Program like ('XXC_AutoAccounting_AutoInvoice Batch%PE%')  ---('%Promise Reconciliation%')
+--  fv.Program like ('SGS Advanced Collections Strategy Request Set%Daily%')    --- modifiable condition  
+ --fcr.actual_start_date >= to_date('2023-10-25 08:00:00', 'yyyy-mm-dd hh24:mi:ss')   --- modifiable condition
+--and fcr.actual_start_date <= to_date('2023-10-25 23:10:51', 'yyyy-mm-dd hh24:mi:ss')    --- modifiable condition  
+--and fv.requestor in ('LIZBETH_MIRANDA')  --- modifiable condition 
+--and fcr.argument_text =(', Y, , Y, Y')
+-- AND ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) > 240
+   AND fu.user_id = fcr.requested_by
+     AND fr.responsibility_id = fcr.responsibility_id
+     AND fcr.concurrent_program_id = fcp.concurrent_program_id
+     AND fcr.program_application_id = fcp.application_id
+     and fv.request_id = fcr.request_id
+     order by 1 desc;
+     
+	2. -------->  Check Parent Child Request ID
+ 
+SELECT
+fcr.request_id "Child Request ID",
+PARENT_REQUEST_ID "Parent Request ID",
+fcptl.user_concurrent_program_name"Parent Program Name",
+fcr.phase_code,
+fcr.status_code,
+to_char(fcr.actual_start_date,'DD-MON-YYYY HH24:MI:SS') "Start Time",
+round((fcr.actual_completion_date - fcr.actual_start_date)*1440,2) "Elapsed Mins",
+fcr.argument_text
+FROM (SELECT
+fcr1.request_id
+FROM apps.fnd_concurrent_requests fcr1
+WHERE 1=1
+START WITH fcr1.request_id in ('448455458','448442417','448330685','448317230','448304499','448201356','448186467')
+CONNECT BY PRIOR fcr1.request_id = fcr1.parent_request_id) x,
+apps.fnd_concurrent_requests fcr,
+apps.fnd_concurrent_programs fcp,
+apps.fnd_concurrent_programs_tl fcptl
+WHERE fcr.request_id = x.request_id
+AND fcr.concurrent_program_id = fcp.concurrent_program_id
+AND fcr.program_application_id = fcp.application_id
+AND fcp.application_id = fcptl.application_id
+AND fcp.concurrent_program_id = fcptl.concurrent_program_id
+AND fcptl.language = 'US'
+ORDER BY 1;
+ 
+ 
+ 
+ 
+	3. --------> Check Request ID's SQL ID
+ 
+	select distinct s.sid,s.serial#,ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) runtime_min,
+	fcr.request_id, fv.requestor, fv.Program cmgr_job,fcr.argument_text "Parameter",q.sql_id
+	--to_char(s.logon_time,'DD-MON-YY HH24:MI:SS') Logon_Time,q.sql_id
+	---p.USERNAME p_user,p.SPID, s.program,s.command,p.PID,p.SERIAL#, s.username,s.process,s.machine,s.action,s.module,q.sql_id
+	from apps.fnd_concurrent_requests fcr,apps.FND_CONC_REQ_SUMMARY_V fv, 
+	gv$session s,gv$process p ,gv$sqlarea q
+	where fcr.request_id in ('448479278')--,'448341652')
+	/*(SELECT  fcr.request_id 
+	    FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+	        ,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+	   WHERE fcr.status_code LIKE 'R'
+	     AND fu.user_id = fcr.requested_by
+	     AND fr.responsibility_id = fcr.responsibility_id
+	     AND fcr.concurrent_program_id = fcp.concurrent_program_id
+	     AND fcr.program_application_id = fcp.application_id
+	     AND ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) > 120)*/
+	and p.SPID = fcr.oracle_process_id
+	and s.process = fcr.OS_PROCESS_ID
+	and s.inst_id = p.inst_id
+	and p.addr = s.paddr
+	and fv.request_id = fcr.request_id
+	and s.sql_hash_value = q.hash_value order by 4;
+ 
+	4. --------> Check SQL_ID
+select inst_id,sid,serial#,status,to_char(logon_time,'yyyy/mm/dd hh24:mi:ss'),client_identifier,module,program,sql_id from gv$session where sid in ('1032');
+=========================================
+--Query Job with Scheduled Date
+SELECT distinct ft.user_concurrent_program_name "Conc Program Name",
+fr.description,
+fr.completion_text,
+r.responsibility_name,
+fr.REQUEST_ID "Request ID",
+fr.parent_request_id,
+to_char(fr.requested_START_DATE,'dd-MON-yy hh24:mi:ss') "Scheduled at",
+to_char(fr.ACTUAL_START_DATE,'dd-MON-yy hh24:mi:ss') "Started at",
+to_char(fr.ACTUAL_COMPLETION_DATE,'dd-MON-yy hh24:mi:ss') "Completed at",
+decode(fr.PHASE_CODE,'C','Completed','I','Inac
+tive','P','Pending','R','Running','NA') "Phasecode",
+decode(fr.STATUS_CODE, 'A','Waiting', 'B','Resuming', 'C','Normal', 'D','Cancelled', 'E','Error', 'F','Scheduled', 'G','Warning', 'H','On Hold', 'I','Normal', 'M',
+'No Manager', 'Q','Standby', 'R','Normal', 'S','Suspended', 'T','Terminating', 'U','Disabled', 'W','Paused', 'X','Terminated', 'Z','Waiting') "Status",fr.argument_text "Parameters",
+fu.user_name "Username",
+round(((nvl(fv.actual_completion_date,sysdate)-fv.actual_start_date)*24*60),2) "ElapsedTime(Mins)"
+FROM
+apps.fnd_concurrent_requests fr ,
+apps.fnd_concurrent_programs fp ,
+apps.fnd_concurrent_programs_tl ft,
+apps.fnd_user fu, apps.fnd_conc_req_summary_v fv,
+apps.fnd_responsibility_tl r
+WHERE 
+---fu.user_name like 'CEDRIC%' and
+fr.PHASE_CODE = 'R' and
+fr.STATUS_CODE = 'W' and
+---fr.ACTUAL_START_DATE is null and
+---r.responsibility_name like '%VN%' and
+----and
+r.responsibility_id = fr.responsibility_id
+and
+ft.language = 'US'
+and
+r.language = 'US'
+and
+fr.CONCURRENT_PROGRAM_ID = fp.CONCURRENT_PROGRAM_ID
+---AND fr.actual_start_date >= (sysdate - &NUMBER_OF_DAYS)
+AND   fr.PROGRAM_APPLICATION_ID = fp.APPLICATION_ID
+AND ft.concurrent_program_id=fr.concurrent_program_id
+AND fr.REQUESTED_BY=fu.user_id
+AND fv.request_id=fr.request_id 
+----and fr.description like 'XXC%%'
+---and fr.ACTUAL_START_DATE > '06-DEC-2023'
+---and fr.ACTUAL_START_DATE < '24-AUG-2023'
+----and fr.REQUEST_ID
+----and ft.user_concurrent_program_name like '%Print%'
+----and fr.argument_text like '%F121501%'
+order by to_char(fr.ACTUAL_COMPLETION_DATE,'dd-MON-yy hh24:mi:ss') desc;
+=======================================
+--Query Program parameters
+SELECT DISTINCT fcpl.user_concurrent_program_name "Concurrent Program Name",
+  fcp.concurrent_program_name "Short Name"                                 ,
+  fat.application_name                                                     ,
+  fl.meaning execution_method                                              ,
+  fe.execution_file_name                                                   ,
+  fcp.output_file_type                                                     ,
+  fdfcuv.column_seq_num "Column Seq Number"                                ,
+  fdfcuv.end_user_column_name "Parameter Name"                             ,
+  fdfcuv.form_left_prompt "Prompt"                                         ,
+  fdfcuv.enabled_flag " Enabled Flag"                                      ,
+  fdfcuv.required_flag "Required Flag"                                     ,
+  fdfcuv.display_flag "Display Flag"                                       ,
+  fdfcuv.flex_value_set_id "Value Set Id"                                  ,
+  ffvs.flex_value_set_name "Value Set Name"                                ,
+  flv.meaning "Default Type"                                               ,
+  fdfcuv.default_value "Default Value"
+   FROM fnd_concurrent_programs fcp ,
+  fnd_concurrent_programs_tl fcpl   ,
+  fnd_descr_flex_col_usage_vl fdfcuv,
+  fnd_flex_value_sets ffvs          ,
+  fnd_lookup_values flv             ,
+  fnd_lookups fl                    ,
+  fnd_executables fe                ,
+  fnd_executables_tl fet            ,
+  fnd_application_tl fat
+  WHERE 1                     = 1
+AND fcp.concurrent_program_id = fcpl.concurrent_program_id
+AND fcp.enabled_flag          = 'Y'
+AND fcpl.user_concurrent_program_name LIKE 'Generate Detraction Invoice' --<Your Concurrent Program Name>
+AND fdfcuv.descriptive_flexfield_name = '$SRS$.'
+  || fcp.concurrent_program_name
+AND ffvs.flex_value_set_id = fdfcuv.flex_value_set_id
+AND flv.lookup_type(+)     = 'FLEX_DEFAULT_TYPE'
+AND flv.lookup_code(+)     = fdfcuv.default_type
+AND fcpl.language          = 'US'
+AND flv.language(+)        = 'US'
+AND fl.lookup_type         ='CP_EXECUTION_METHOD_CODE'
+AND fl.lookup_code         =fcp.execution_method_code
+AND fe.executable_id       = fcp.executable_id
+AND fe.executable_id       =fet.executable_id
+AND fet.language           = 'US'
+AND fat.application_id     =fcp.application_id
+AND fat.language           = 'US'
+ORDER BY fdfcuv.column_seq_num;
+
+===============================
+/*This script is for validation if the responsibility is still active on some users 
+Formatted on 15-JUN-2024 by Mark Villa */
+SELECT distinct
+fuser.USER_NAME USER_NAME
+,fuser.user_id
+,fuser.creation_date
+,fuser.last_update_date
+,fuser.LAST_LOGON_DATE
+,fuser.START_DATE
+,fuser.END_DATE
+,furg.DESCRIPTION
+,frt.RESPONSIBILITY_NAME RESPONSIBILITY
+,TO_CHAR(furg.START_DATE,'DD-MON-YYYY') resp_attched_date
+,TO_CHAR(furg.END_DATE,'DD-MON-YYYY') resp_remove_date
+FROM
+FND_USER fuser
+, fnd_user_resp_groups_direct furg
+, FND_RESPONSIBILITY_TL frt
+WHERE 1=1
+AND fuser.USER_ID = furg.USER_ID
+AND (to_char(fuser.END_DATE) is null OR fuser.END_DATE > sysdate)
+AND frt.RESPONSIBILITY_ID = furg.RESPONSIBILITY_ID
+AND frt.LANGUAGE = 'US'
+AND frt.RESPONSIBILITY_NAME IN ( 
+'CA OM Support',
+'F180401 BY OM Registration/Administration_USD',
+'F180401 BY OM Remote User_USD',
+'F180401 BY OM Support_USD',
+'F180401 BY OM User_USD',
+'F180401 BY OM-AR OTC Finance User_USD',
+'MX OM Support',
+'TW F610701 OM L2 Superuser',
+'TW F610701 OM-PA Coordinator',
+'TW F610701 QP Support') -- Modifiable value, which responsibility is to be checked without end date.
+-- Run this 2 lines below separately. Querying both NULL and > Sysdate took a very long time
+AND furg.END_DATE is null -- Check for No End Date
+--AND furg.END_DATE > sysdate -- Check for not yet end dated
+ORDER BY
+fuser.USER_NAME;
+===========================================
