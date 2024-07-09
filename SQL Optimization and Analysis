@@ -1,0 +1,50 @@
+ashtop.sql event2 1=1 "to_date('2023-04-26 xx:xx:xx', 'YYYY-MM-DD HH24:MI:SS')" "to_date('2023-04-26 xx:xx:xx', 'YYYY-MM-DD HH24:MI:SS')"
+/
+--@"C:\Users\mark.joseph.villa\OneDrive - Accenture\Documents\ashtop.sql" sql_id "event='enq: TX - row lock contention'" "to_date('2023-04-26 11:00:00', 'YYYY-MM-DD HH24:MI:SS')" "to_date('2023-04-26 12:30:00', 'YYYY-MM-DD HH24:MI:SS')"
+/
+@"C:\Users\mark.joseph.villa\OneDrive - Accenture\Documents\ashtop.sql" sql_id "event='enq: TX - row lock contention'" "to_date('2023-04-27 11:30:00', 'YYYY-MM-DD HH24:MI:SS')" "to_date('2023-04-27 12:40:00', 'YYYY-MM-DD HH24:MI:SS')"
+/
+SELECT DISTINCT sql_id, sql_text FROM gv$sql where sql_id in ('26xvmv426mzbh','4a013dj33gaxd','5hrg3bhzmjzzg')
+/
+SELECT DISTINCT inst_id, sid, username, sql_id, module, action FROM gv$session where sql_id in ('26xvmv426mzbh','4a013dj33gaxd','5hrg3bhzmjzzg')
+/
+SELECT b.SID SID, c.spid,b.serial# "Serial#", d.user_name "User Name", logon_time,
+ROUND ((SYSDATE - logon_time) * 24, 2) "session_time(HR)", status
+FROM fnd_logins a, v$session b, v$process c, fnd_user d
+WHERE b.sid in ('6503')
+AND b.paddr = c.addr
+AND a.pid = c.pid
+AND a.spid = b.process
+AND d.user_id = a.user_id
+AND (d.user_name = 'USER_NAME' OR 1 = 1)
+--AND ((SYSDATE - logon_time) * 24) > 10
+ORDER BY d.user_name, logon_time;
+/
+
+==============================
+---> Concurrent Request, SID and SQL_ID
+==============================
+ 
+select distinct s.sid,s.serial#,ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) runtime_min,
+fcr.request_id, fv.requestor, fv.Program cmgr_job,fcr.argument_text "Parameter",q.sql_id
+--to_char(s.logon_time,'DD-MON-YY HH24:MI:SS') Logon_Time,q.sql_id
+---p.USERNAME p_user,p.SPID, s.program,s.command,p.PID,p.SERIAL#, s.username,s.process,s.machine,s.action,s.module,q.sql_id
+from apps.fnd_concurrent_requests fcr,apps.FND_CONC_REQ_SUMMARY_V fv, 
+gv$session s,gv$process p ,gv$sqlarea q
+where fcr.request_id in 
+(SELECT  fcr.request_id 
+    FROM apps.fnd_concurrent_requests fcr,apps.fnd_user fu
+        ,apps.fnd_responsibility_vl fr,apps.fnd_concurrent_programs_vl fcp
+   WHERE fcr.request_id='427012390' -- fcr.status_code LIKE 'R'
+     AND fu.user_id = fcr.requested_by
+     AND fr.responsibility_id = fcr.responsibility_id
+     AND fcr.concurrent_program_id = fcp.concurrent_program_id
+     AND fcr.program_application_id = fcp.application_id
+     AND ROUND (((SYSDATE - fcr.actual_start_date) * 60 * 24), 2) > 120)
+and p.SPID = fcr.oracle_process_id
+and s.process = fcr.OS_PROCESS_ID
+and s.inst_id = p.inst_id
+and p.addr = s.paddr
+and fv.request_id = fcr.request_id
+and s.sql_hash_value = q.hash_value order by 4
+
