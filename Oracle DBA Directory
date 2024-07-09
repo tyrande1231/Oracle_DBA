@@ -1,0 +1,115 @@
+1.Instance startup and configuration Log files are located for INST_TOP in Oracle Release 12.1.3 are below:
+$INST_TOP/logs/appl/admin/log
+Startup/Shutdown error message related to tech stack (10.1.2, 10.1.3 forms/reports/web)
+$INST_TOP/logs/ora/ (10.1.2 & 10.1.3)
+$INST_TOP/logs/ora/10.1.3/Apache/error_log[timestamp](Apache log files)
+$INST_TOP/logs/ora/10.1.3/opmn/ (OC4J, oa*, opmn.log)
+$INST_TOP/logs/ora/10.1.2/network/ (listener log)
+$INST_TOP/apps/$CONTEXT_NAME/logs/appl/conc/log (CM log files)
+2. Log files related to cloning in R12.1.3 are as below:
+Preclone log files in source instance
+Database Tier – $ORACLE_HOME/appsutil/log/$CONTEXT_NAME/(StageDBTier_MMDDHHMM.log)
+Application Tier –
+$INST_TOP/apps/$CONTEXT_NAME/admin/log/(StageAppsTier_MMDDHHMM.log)
+Clone log files in target instance
+Database Tier – $ORACLE_HOME/appsutil/log/$CONTEXT_NAME/ApplyDBTier_.log
+Apps Tier – $INST_TOP/admin/log/ApplyAppsTier_.log
+3. Patching related log files in R12.1.3 are as below:
+i) Application Tier adpatch log – $APPL_TOP/admin/$SID/log/
+ii) Developer (Developer/Forms & Reports 10.1.2) Patch – $ORACLE_HOME/.patch_storage
+iii) Web Server (Apache) patch – $IAS_ORACLE_HOME/.patch_storage
+iv) Database Tier opatch log – $ORACLE_HOME/.patch_storage
+4. Autoconfig related log files in R12.1.3 are as below:
+a) Database Tier Autoconfig log :
+$ORACLE_HOME/appsutil/log/$CONTEXT_NAME/MMDDHHMM/adconfig.log
+$ORACLE_HOME/appsutil/log/$CONTEXT_NAME/MMDDHHMM/NetServiceHandler.log
+b) Application Tier Autoconfig log :
+$INST_TOP/apps/$CONTEXT_NAME/admin/log/$MMDDHHMM/adconfig.log
+5.Autoconfig context file location in R12.1.3 :
+$INST_TOP/apps/$CONTEXT_NAME/appl/admin/$CONTEXT_NAME.xml
+6.R12.1.3 Installation Logs in R12.1.3 are as below:
+Database Tier Installation
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/ApplyDBTechStack_.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/ohclone.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/make_.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/installdbf.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/adcrdb_.log RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME/ApplyDatabase_.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME//adconfig.log
+RDBMS_ORACLE_HOME/appsutil/log/$CONTEXT_NAME//NetServiceHandler.log
+Application Tier Installation
+$INST_TOP/logs/.log
+$APPL_TOP/admin/$CONTEXT_NAME/log/ApplyAppsTechStack.log
+$INST_TOP/logs/ora/10.1.2/install/make_.log
+$INST_TOP/logs/ora/10.1.3/install/make_.log
+$INST_TOP/admin/log/ApplyAppsTechStack.log
+$INST_TOP/admin/log/ohclone.log
+$APPL_TOP/admin/$CONTEXT_NAME/log/installAppl.log
+$APPL_TOP/admin/$CONTEXT_NAME/log/ApplyAppltop_.log
+$APPL_TOP/admin/$CONTEXT_NAME/log//adconfig.log
+$APPL_TOP/admin/$CONTEXT_NAME/log//NetServiceHandler.log
+Inventory Registration:
+$Global Inventory/logs/cloneActions.log
+$Global Inventory/logs/oraInstall.log
+$Global Inventory/logs/silentInstall.log
+7.Log files related with relink,Network,OUT inventory logs for R12.1.3 are as below:
+1) Database Tier
+1.1) Relink Log files :
+$ORACLE_HOME/appsutil/log/$CONTEXT_NAME /MMDDHHMM/ make_$MMDDHHMM.log
+1.2) Alert Log Files :
+$ORACLE_HOME/admin/$CONTEXT_NAME/bdump/alert_$SID.log
+1.3) Network Logs :
+$ORACLE_HOME/network/admin/$SID.log
+1.4) OUI Logs :
+OUI Inventory Logs :
+$ORACLE_HOME/admin/oui/$CONTEXT_NAME/oraInventory/logs
+2) Application Tier
+$ORACLE_HOME/j2ee/DevSuite/log
+$ORACLE_HOME/opmn/logs
+$ORACLE_HOME/network/logs
+Tech Stack Patch 10.1.3 (Web/HTTP Server)
+$IAS_ORACLE_HOME/j2ee/forms/logs
+$IAS_ORACLE_HOME/j2ee/oafm/logs
+$IAS_ORACLE_HOME/j2ee/oacore/logs
+$IAS_ORACLE_HOME/opmn/logs
+$IAS_ORACLE_HOME/network/log
+$INST_TOP/logs/ora/10.1.2
+$INST_TOP/logs/ora/10.1.3
+$INST_TOP/logs/appl/conc/log
+$INST_TOP/logs/appl/admin/log
+In EBS R12.2.4 the log files locations are as below:
+1.Log files file Online patching (adop) in EBS R12.2.4 are in below location:
+The adop log files are located on the non-editioned file system (fs_ne), under:
+$NE_BASE/EBSapps/log/adop/<adop_session_id>/<phase>_<date>_<time>/<context_name>/log
+This log directory will contain patch logs,patch worker logs.
+adop(phase=fs_clone) Online pathcing filesystem cloning process related log files are found under:
+$INST_TOP/admin/log
+2.Log files for Autoconfig process in Oracle EBS R12.2.4 are below:
+On Applicaion Tier: $INST_TOP/admin/log/<MMDDhhmm>
+On Database Tier: $ORACLE_HOME/appsutil/log/<CONTEXT_NAME>/<MMDDhhmm>
+3.Log files for start/stop of services from $ADMIN_SCRIPTS_HOME
+In below directory we will find log files related to start/stop process of oacore, forms, apache, opmn,
+weblogic admin server/node manager:
+$LOG_HOME/appl/admin/log
+4.Log/Out files for Concurrent programs/managers in Oracle R12.2.4 are in below location:
+Log/Out files for Oracle Release 12.2 are stored in Non-Editioned filesystem(NE).
+Log files: $APPLCSF/$APPLLOG (or $NE_BASE/inst/<CONTEXT_NAME>/logs/appl/conc/log)
+Out files: $APPLCSF/$APPLOUT (or $NE_BASE/inst/<CONTEXT_NAME>/logs/appl/conc/out)
+5.Log files for OPMN and OHS processes in Oracle R12.2.4 are in below location:
+Below directory contains log files related OPMN process(opmn.log),
+OPMN Debug logs(debug.log), HTTP Transaction logs (access.log),security settings related logs.
+$IAS_ORACLE_HOME/instances/<ohs_instance>/diagnostics/logs
+6.Log file for Weblogic Node Manager in Oracle R12.2.4 are in below location:
+Log file is generated by Node Manager and contains data for all domains that
+are controlled by Node Manager on a given physical machine.
+$FMW_HOME/wlserver_10.3/common/nodemanager/nmHome1/nodemanager.log
+7.Log file for Weblogic in Oracle R12.2.4 for Oracle Management Service are below
+Initial settings for AdminServer and Domain level information is written in this log file
+$EBS_DOMAIN_HOME/sysman/log
+8.Log files for server processes initiated through Weblogic in Oracle R12.2.4 are in below location:
+Stdout and stderr messages generated by the forms, oafm and oacore services are located
+at NOTICE severity level or higher are written by Weblogic Node Manager to below directory.
+$EBS_DOMAIN_HOME/servers/<server_name>/logs/<server_name>.out
+
+From <https://doyensys.com/blogs/log-file-locations-in-oracle-ebs-12-1-3-and-12-2-4/> 
+
