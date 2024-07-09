@@ -1,0 +1,53 @@
+CUPS
+service cups status
+lpstat -o|wc -l;date
+lpstat -p -d |grep disabled
+================
+UNIX Access
+pbrun custdba password-manager SGDSEBST10
+
+=======================
+ETL Program
+XXC_ETL_INTF
+ls -ltr /u01/install/APPS/fs2/EBSapps/appl/xxc/12.0.0/bin/XXC_ETL_INTF                                         
+
+======================
+Find Application IP/Port via PowerShell
+Tasklist | findstr AppName -- Find PID
+Netstat -ano | findstr PID
+
+tasklist|findstr WinSCP
+WinSCP.exe                   26404 Console                    1     56,948 K
+netstat -ano|findstr 26404
+  TCP    10.152.33.237:49979    10.233.81.26:22        ESTABLISHED     26404
+
+======================
+SFTP 
+find /sgs/ifs/batch/log/ -mtime -1 -ls
+cat /sgs/ifs/batch/log/20221024.ftp_invoice_on_hold_from_boss.sh.log
+======================
+List file within certain date/time
+ls -ltr | awk '$6 == "Jan" && $7 >=19 && $7 <= 23 {print $6"-"$7,$9}'
+Variable Month
+Greater than and Less than Date
+
+=====================
+LOGS
+/u02/applcsf/EBSPR1/system/log
+
+Find file with certain keyword
+grep -l "458204393" *
+
+File text on latest file
+find . -type f | xargs grep -l "o456879196.pdf" | xargs ls -rt | tail -1
+
+========================
+ ls -ltr | grep "$(date +"%b %e")\|$(date -d -1day +"%b %e")"
+========================
+--Update modified date in the directory
+touch -a -m -t 201512180130.09 fileName.ext
+
+Where
+-a = accessed
+-m = modified
+-t = timestamp - use [[CC]YY]MMDDhhmm[.ss] time format
